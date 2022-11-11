@@ -1,5 +1,6 @@
 $badreg = 'Registry::HKU\*\Software\Microsoft\Windows\CurrentVersion\Run'
 $malfiledir = "C:\Program Files (x86)\Lavasoft\Web Companion\", "C:\Users\*\AppData\Roaming\BBWC\", "C:\Users\*\AppData\Roaming\Browser Extension\updater.exe"
+#Idea:
 #$updaterhash="<SHA-256>"
 #get hash of updater.exe and delete file by known bad hash
 
