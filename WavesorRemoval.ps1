@@ -193,14 +193,10 @@ Function Set-Owner {
 Set-Variable -Name ErrorActionPreference -Value SilentlyContinue
 
 
-echo Killing Browsers
+#echo Killing Browsers
 cmd /c taskkill.exe /F /IM wavebrowser.exe
-#cmd /c taskkill.exe /F /IM chrome.exe
-#cmd /c taskkill.exe /F /IM IEXPLORE.EXE
-#cmd /c taskkill.exe /F /IM msedge.exe
-#cmd /c taskkill.exe /F /IM firefox.exe
 
-echo "Forcing Loggoff for locked files"
+#echo "Forcing Loggoff for locked files"
 logoff 1
 logoff 2
 logoff 3
@@ -213,197 +209,142 @@ $ErrorActionPreference = 'SilentlyContinue'
 $badprocs=get-process | ?{$_.name -like 'Wave*Browser*'} | select -exp Id;
 $SWUpdater=get-process | ?{$_.name -like 'SWUpdater'} | select -exp Id;
 
-echo '------------------------';
 
-echo 'Process(es) Terminated'
+Write-Output 'Removed:'
 
-echo '------------------------';
 
 if ($badprocs){
-
-Foreach ($badproc in $badprocs){
-
-echo $badproc
-
-stop-process -Id $badproc -force
-
-}
-
+    Foreach ($badproc in $badprocs){
+        Write-Output "Proc: $badproc.Name"
+        stop-process -Id $badproc.Id -force
+    }
 }
 
 elseif ($SWUpdater){
-
-Foreach ($SWUpdater in $SWUpdater){
-
-echo $SWUpdater
-
-stop-process -Id $SWUpdater -force
-
+    Foreach ($process in $SWUpdater){
+        Write-Output "Proc: $process.Name"
+        stop-process -Id $process.Id -force
+    }
 }
 
-}
 
 else {
-
-echo 'No Processes Terminated.'
-
+    Write-Output 'No Processes.'
 }
 
 $stasks = schtasks /query /fo csv /v | convertfrom-csv | ?{$_.TaskName -like 'Wavesor*'} | select -exp TaskName
 
-echo ''
-
-echo '----------------------------';
-
-' Scheduled Task(s) Removed:'
-
-echo '----------------------------';
-
 if ($stasks){
-
-Foreach ($task in $stasks){
-
-echo "$task"
-
-schtasks /delete /tn $task /F
-
+    Foreach ($task in $stasks){
+        Write-Output "SchTask- $task"
+        schtasks /delete /tn $task /F
+    }
+} else {
+    Write-Output "No Scheduled Tasks."
 }
-
-}
-
-else {"No Scheduled Tasks Found."};
 
 $badDirs = 'C:\Users\*\Wavesor Software',
+           'C:\Users\*\Downloads\Wave Browser*.exe',
+           'C:\Users\*\AppData\Local\WaveBrowser',
+           'C:\Windows\System32\Tasks\Wavesor Software_*',
+           'C:\WINDOWS\SYSTEM32\TASKS\WAVESORSWUPDATERTASKUSER*CORE',
+           'C:\WINDOWS\SYSTEM32\TASKS\WAVESORSWUPDATERTASKUSER*UA',
+           'C:\USERS\*\APPDATA\ROAMING\MICROSOFT\WINDOWS\START MENU\PROGRAMS\WAVEBROWSER.LNK',
+           'C:\USERS\*\APPDATA\ROAMING\MICROSOFT\INTERNET EXPLORER\QUICK LAUNCH\WAVEBROWSER.LNK',
+           'C:\USERS\*\APPDATA\ROAMING\MICROSOFT\INTERNET EXPLORER\QUICK LAUNCH\USER PINNED\TASKBAR\WAVEBROWSER.LNK', 
+           'C:\USERS\*\DESKTOP\WAVEBROWSER.LNK',
+           'C:\Users\*\AppData\Local\Temp\Wave'
 
-'C:\Users\*\Downloads\Wave Browser*.exe',
+start-sleep -s 2
 
-'C:\Users\*\AppData\Local\WaveBrowser',
-
-'C:\Windows\System32\Tasks\Wavesor Software_*',
-
-'C:\WINDOWS\SYSTEM32\TASKS\WAVESORSWUPDATERTASKUSER*CORE',
-
-'C:\WINDOWS\SYSTEM32\TASKS\WAVESORSWUPDATERTASKUSER*UA',
-
-'C:\USERS\*\APPDATA\ROAMING\MICROSOFT\WINDOWS\START MENU\PROGRAMS\WAVEBROWSER.LNK',
-
-'C:\USERS\*\APPDATA\ROAMING\MICROSOFT\INTERNET EXPLORER\QUICK LAUNCH\WAVEBROWSER.LNK',
-
-'C:\USERS\*\APPDATA\ROAMING\MICROSOFT\INTERNET EXPLORER\QUICK LAUNCH\USER PINNED\TASKBAR\WAVEBROWSER.LNK'
-
-echo ''
-
-echo '-------------------------------';
-
-echo 'File System Artifacts Removed;'
-
-echo '-------------------------------';
-
-start-sleep -s 2;
+$foundFiles = $false
 
 ForEach ($badDir in $badDirs) {
-
-$dsfolder = gi -Path $badDir -ea 0| select -exp fullname;
-
-if ( $dsfolder) {
-
-echo "$dsfolder"
-
-rm $dsfolder -recurse -force -ea 0
-
+    $dsfolder = gi -Path $badDir -ea 0 | select -exp fullname
+    if ($dsfolder) {
+        Write-Output "Dir- $dsfolder"
+        rm $dsfolder -recurse -force -ea 0
+        $foundFiles = $true
+    }
 }
 
-else {
-
+if (-not $foundFiles) {
+    Write-Output "No Files."
 }
 
-}
-
-$checkhandle = gi -Path 'C:\Users\*\AppData\Local\WaveBrowser' -ea 0| select -exp fullname;
-
+$checkhandle = gi -Path 'C:\Users\*\AppData\Local\WaveBrowser' -ea 0| select -exp fullname
 if ($checkhandle){
-
-echo ""
-
-echo "NOTE: C:\Users\*\AppData\Local\WaveBrowser' STILL EXISTS! A PROCESS HAS AN OPEN HANDLE TO IT!"
-
+    Write-Output "C:\Users\*\AppData\Local\WaveBrowser' EXISTS: OPEN HANDLE!"
 }
 
-$badreg=
+$foundRegItems = $false
 
-'Registry::HKU\*\Software\WaveBrowser',
+$HKUKeys = Get-ChildItem -Path Registry::HKU | Select-Object -ExpandProperty Name
+$badreg = @(
+    'Registry::HKLM\SOFTWARE\MICROSOFT\WINDOWS NT\CURRENTVERSION\SCHEDULE\TASKCACHE\TREE\WavesorSWUpdaterTaskUserUA',
+    'Registry::HKLM\SOFTWARE\MICROSOFT\WINDOWS NT\CURRENTVERSION\SCHEDULE\TASKCACHE\TREE\WavesorSWUpdaterTaskUserCore',
+    'Registry::HKLM\SOFTWARE\MICROSOFT\WINDOWS NT\CURRENTVERSION\SCHEDULE\TASKCACHE\TREE\Wavesor Software'
+)
 
-'Registry::HKU\*\SOFTWARE\CLIENTS\STARTMENUINTERNET\WaveBrowser.*',
+$badregHKU = @(
+    'Software\WaveBrowser',
+    'SOFTWARE\CLIENTS\STARTMENUINTERNET\WaveBrowser',
+    'SOFTWARE\MICROSOFT\WINDOWS\CURRENTVERSION\APP PATHS\wavebrowser.exe',
+    'SOFTWARE\MICROSOFT\WINDOWS\CURRENTVERSION\UNINSTALL\WaveBrowser',
+    'Software\Wavesor',
+    'SOFTWARE\Wavesor',
+    'WaveBrwsHTM',
+    'WavesorSWUpdater',
+    'OPENWITHPROGIDS|WAVEBRWSHTM'
+)
 
-'Registry::HKU\*\SOFTWARE\MICROSOFT\WINDOWS\CURRENTVERSION\APP PATHS\wavebrowser.exe',
 
-'Registry::HKU\*\SOFTWARE\MICROSOFT\WINDOWS\CURRENTVERSION\UNINSTALL\WaveBrowser',
-
-'Registry::HKU\*\Software\Wavesor',
-
-'Registry::HKLM\SOFTWARE\MICROSOFT\WINDOWS NT\CURRENTVERSION\SCHEDULE\TASKCACHE\TREE\WavesorSWUpdaterTaskUser*UA',
-
-'Registry::HKLM\SOFTWARE\MICROSOFT\WINDOWS NT\CURRENTVERSION\SCHEDULE\TASKCACHE\TREE\WavesorSWUpdaterTaskUser*Core',
-
-'Registry::HKLM\SOFTWARE\MICROSOFT\WINDOWS NT\CURRENTVERSION\SCHEDULE\TASKCACHE\TREE\Wavesor Software_*'
-
-echo ''
-
-echo '---------------------------';
-
-echo 'Registry Artifacts Removed:'
-
-echo '---------------------------';
-
-Foreach ($reg in $badreg){
-
-$regoutput= gi -path $reg | select -exp Name
-
-if ($regoutput){
-
-"$regoutput `n"
-
-reg delete $regoutput /f
-
+foreach ($HKUKey in $HKUKeys) {
+    foreach ($reg in $badregHKU) {
+        $regPath = "Registry::$HKUKey\$reg"
+        if (Test-Path $regPath) {
+            $regoutput = Get-Item -Path $regPath | Select-Object -ExpandProperty Name
+            if ($regoutput) {
+                Write-Output "Regkey- $regoutput"
+                reg delete $regoutput /f
+                $foundRegItems = $true
+            }
+        }
+    }
 }
 
-else {}
-
+foreach ($reg in $badreg) {
+    if (Test-Path $reg) {
+        $regoutput = Get-Item -Path $reg | Select-Object -ExpandProperty Name
+        if ($regoutput) {
+            Write-Output"Regkeys- $regoutput"
+            reg delete $regoutput /f
+            $foundRegItems = $true
+        }
+    }
 }
 
-$badreg2=
+$badreg2 = @(
+    'Software\Microsoft\Windows\CurrentVersion\Run',
+    'Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Run'
+)
 
-'Registry::HKU\*\Software\Microsoft\Windows\CurrentVersion\Run',
 
-'Registry::HKU\*\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Run'
-
-echo ''
-
-echo '----------------------------------';
-
-echo 'Registry Run Persistence Removed:'
-
-echo '----------------------------------';
-
-Foreach ($reg2 in $badreg2){
-
-$regoutput= gi -path $reg2 -ea silentlycontinue | ? {$_.Property -like 'Wavesor SWUpdater'} | select -exp Property ;
-
-$regpath = gi -path $reg2 -ea silentlycontinue | ? {$_.Property -like 'Wavesor SWUpdater'} | select -exp Name ;
-
-Foreach($prop in $regoutput){
-
-If ($prop -like 'Wavesor SWUpdater'){
-
-"$regpath value: $prop `n"
-
-reg delete $regpath /v $prop /f
-
+foreach ($HKUKey in $HKUKeys) {
+    foreach ($reg in $badreg2) {
+        $regPath = "Registry::$HKUKey\$reg"
+        if (Test-Path $regPath) {
+            $properties = Get-ItemProperty -Path $regPath
+            foreach ($property in $properties.PSObject.Properties) {
+                if ($property.Name -like 'Wavesor SWUpdater') {
+                    Remove-ItemProperty -Path $regPath -Name $property.Name
+                    Write-Output "Regkey- $property.Name from $regPath"
+                    $foundRegItems = $true
+                }
+            }
+        }
+    }
 }
-
-else {}
-
+if (-not $foundRegItems) {
+    Write-Output "No reg items"
 }
-
-}
-echo "ALL DONE"
