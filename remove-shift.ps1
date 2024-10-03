@@ -1,8 +1,5 @@
 #Desc: This is a script that is aimed to automate the Shift removal commands seen in shift summary. Shift browser is being treated as adware due to the way it's delivered to users.
 # Description: Powershell script to interact with the Crowdstrike API; Allows removal of Shift on devices.
-# Author: Michael Lavallee
-# Email: mlavallee41@massmutual.com
-# Date: 8/13/2024
 
 Set-Variable -Name ErrorActionPreference -Value SilentlyContinue
 
